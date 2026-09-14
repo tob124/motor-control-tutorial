@@ -97,6 +97,11 @@ export class ModelViewer {
     if (options.index !== undefined) this.index = options.index;
     this.index = Math.max(0, Math.min(this.index, Math.max(0, this.rows.length - 1)));
     this.draw();
+    // 必须通知界面：载入数据后播放控件才从"禁用"变成可用。
+    // 早先这里只 draw() 不 _notify()，于是数据已经进来了、按钮却还是灰的，
+    // 表现为"点播放没反应"——这也是整个问题里最难查的一环，
+    // 因为它不报错，只是控件永远停在初始状态。
+    this._notify();
   }
 
   setIndex(index) {
@@ -104,6 +109,7 @@ export class ModelViewer {
     if (clamped === this.index) return;
     this.index = clamped;
     this.draw();
+    this._notify();
   }
 
   setMode(mode) {

@@ -67,11 +67,22 @@ function disposeAllViewers() {
 }
 
 function updateModelControls(canvasId, info) {
+  // 播放控件是否可用，只取决于"有没有数据"。
+  // 早先的版本把 disabled 写死在初始 HTML 里（hasData 恒为 false），
+  // 结果运行完实验、数据已经灌进模型了，播放按钮却仍然是灰的、点不动。
+  const ready = info.total >= 2;
+  for (const selector of ['play', 'step']) {
+    document.querySelectorAll(`[data-model-${selector}="${canvasId}"]`).forEach((button) => {
+      button.disabled = !ready;
+    });
+  }
   const scrub = document.querySelector(`[data-model-scrub="${canvasId}"]`);
-  if (scrub && info.total) {
-    scrub.max = String(Math.max(0, info.total - 1));
-    scrub.value = String(info.index);
-    scrub.disabled = info.total < 2;
+  if (scrub) {
+    scrub.disabled = !ready;
+    if (info.total) {
+      scrub.max = String(Math.max(0, info.total - 1));
+      scrub.value = String(info.index);
+    }
   }
   const frame = document.querySelector(`[data-model-frame="${canvasId}"]`);
   if (frame) {

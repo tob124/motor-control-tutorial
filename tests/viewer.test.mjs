@@ -2,6 +2,35 @@
 import { ModelViewer } from '../dist/modelview.js';
 
 globalThis.window = { devicePixelRatio: 1, requestAnimationFrame: (fn) => setTimeout(() => fn(Date.now()), 16) };
+
+/* 最小 DOM 桩件：只支持 updateModelControls 用到的选择器。
+ * 这是为了回归"点播放没反应"那个 bug —— 控件状态由 DOM 决定，
+ * 不把 DOM 纳入测试就永远测不到它。 */
+class FakeElement {
+  constructor(dataset) { this.dataset = dataset; this.disabled = true; this.textContent = ''; }
+  setAttribute() {}
+}
+const elements = [];
+globalThis.document = {
+  querySelector(selector) {
+    const match = selector.match(/\[data-model-(\w+)=\"([^\"]+)\"\]/);
+    if (!match) return null;
+    return elements.find((el) => el.dataset['model' + match[1][0].toUpperCase() + match[1].slice(1)] === match[2]
+      && selector.includes(`data-model-${match[1]}`)) || null;
+  },
+  querySelectorAll(selector) {
+    const match = selector.match(/data-model-(\w+)=\"([^\"]+)\"/);
+    if (!match) return [];
+    const key = 'model' + match[1][0].toUpperCase() + match[1].slice(1);
+    return elements.filter((el) => el.dataset[key] === match[2]);
+  },
+};
+function register(role, id) {
+  const key = 'model' + role[0].toUpperCase() + role.slice(1);
+  const el = new FakeElement({ [key]: id });
+  elements.push(el);
+  return el;
+}
 globalThis.requestAnimationFrame = window.requestAnimationFrame;
 globalThis.cancelAnimationFrame = (id) => clearTimeout(id);
 
@@ -87,6 +116,51 @@ check('到末尾自动停', motor.playing === false);
 // dispose 幂等
 motor.dispose(); motor.dispose();
 check('dispose 可重复调用', true);
+
+/* ---------------------------------------------------------------- 播放控件状态 */
+// 回归"点播放没反应"：载入数据后，播放/单步/时间轴必须从禁用变成可用。
+{
+  const { updateModelControls } = await import('/home/tobzen/code/dsh/motor-control-tutorial/dist/app.js')
+    .then(() => ({ updateModelControls: null })).catch(() => ({ updateModelControls: null }));
+  // app.js 依赖浏览器环境，这里直接验证 ModelViewer 的通知链路
+  elements.length = 0;
+  const play = register('play', 'ctl');
+  const scrub = register('scrub', 'ctl');
+  const frame = register('frame', 'ctl');
+  let lastInfo = null;
+
+  const viewer = new ModelViewer(canvas(), {
+    kind: 'motor', mode: '3d',
+    onFrame: (info) => {
+      lastInfo = info;
+      const ready = info.total >= 2;
+      play.disabled = !ready;
+      scrub.disabled = !ready;
+      frame.textContent = info.total ? `${info.index + 1} / ${info.total}` : '等待实验数据';
+      if (info.total) scrub.value = String(info.index);
+    },
+  });
+  check('初始无数据时播放按钮禁用', play.disabled === true);
+  // 构造阶段不会主动 notify（此时 rows 为空），界面上的"等待实验数据"
+  // 是 viewerMarkup 里写好的初始文案，由 app.js 的 updateModelControls 反映。
+  check('构造阶段没有可播放的数据', lastInfo === null);
+
+  viewer.setRows(rows);
+  check('载入数据后触发通知', lastInfo !== null && lastInfo.total === rows.length,
+    `total=${lastInfo && lastInfo.total}`);
+  check('载入数据后播放按钮可用', play.disabled === false);
+  check('载入数据后时间轴可用', scrub.disabled === false);
+  check('帧计数器显示正确', frame.textContent === `1 / ${rows.length}`, frame.textContent);
+
+  viewer.setIndex(10);
+  check('拖动时间轴后索引更新', lastInfo.index === 10, `index=${lastInfo.index}`);
+  check('索引同步到时间轴', scrub.value === '10' || Number(scrub.value) === 10);
+
+  viewer.toggle();
+  check('切换后进入播放态', lastInfo.playing === true);
+  viewer.toggle();
+  check('再切换回到暂停态', lastInfo.playing === false);
+}
 
 if (fails.length) {
   console.error(`查看器测试失败 ${fails.length} 项：`);
