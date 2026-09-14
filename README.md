@@ -6,7 +6,7 @@
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
-[![Dependencies: 无第三方依赖](https://img.shields.io/badge/Dependencies-%E6%97%A0%E7%AC%AC%E4%B8%89%E6%96%B9%E4%BE%9D%E8%B5%96-brightgreen.svg)](#先启动)
+[![Dependencies: 仅标准库](https://img.shields.io/badge/Dependencies-%E4%BB%85%20Python%20%E6%A0%87%E5%87%86%E5%BA%93-brightgreen.svg)](#安装一分钟一条命令)
 [![Tests: 149](https://img.shields.io/badge/Tests-149%20passing-success.svg)](#测试与验收)
 [![Offline: 本机实时求解](https://img.shields.io/badge/Offline-%E6%9C%AC%E6%9C%BA%E5%AE%9E%E6%97%B6%E6%B1%82%E8%A7%A3-informational.svg)](#这门课想解决什么问题)
 
@@ -18,6 +18,75 @@
 </p>
 
 <p align="center"><sub>以上为实验台的真实渲染输出（<code>tests/render-preview.mjs</code> 离屏渲染，未做手工修图）。</sub></p>
+
+---
+
+## 安装（一分钟，一条命令）
+
+**完全没用过命令行？** 看 [五分钟装上这门课](docs/QUICKSTART.md)，那里是保姆级步骤。
+
+在终端里粘贴这一行、回车，剩下的事它自己做完：
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/tob124/motor-control-tutorial/main/deploy.sh)
+```
+
+它会依次：检查环境 → 从 GitHub 下载课程 → 生成课程内容 → 自检 →
+询问是否现在启动（启动后自动打开浏览器）。
+
+装好之后，以后每次用：
+
+```bash
+cd ~/robocon-control-course
+./start.sh          # 停止：按 Ctrl+C
+```
+
+然后访问 <http://127.0.0.1:8770/>。
+
+**只需要 Python 3.10 以上。** 不需要 pip、不需要 Docker、不需要联网运行、不会改你的系统配置。
+
+服务端**只用 Python 标准库**；前端是原生 HTML/JS，无构建步骤。
+唯一的第三方代码是 `dist/vendor/` 下的 xterm.js（可选终端面板用），
+随仓库提供并保留了原始许可证与来源清单——所以不会出现"依赖装不上"的经典问题。
+
+<details>
+<summary>其他安装方式（网络受限 / Windows / 想手动来）</summary>
+
+**下载 ZIP（没有 git 时）**
+从仓库页面 `Code` → `Download ZIP`，解压后在目录里执行：
+
+```bash
+bash install.sh --in-place
+```
+
+**只想先看看环境够不够**
+
+```bash
+bash install.sh --dry-run
+```
+
+**Windows**
+
+推荐用 WSL2（Ubuntu），然后按上面的一行命令安装：
+
+```
+wsl --install -d Ubuntu
+```
+
+装好后也可以直接双击 `start-windows.bat` 启动（它会优先用 WSL，
+没有 WSL 时回退到 Windows 版 Python）。
+
+**可选的容器实验（只有它需要 Docker）**
+
+44 个网页实验台、课程内容、作品导出都**不需要** Docker。
+只有"真实 Linux 终端实验"（编译 C、CAN 工具）需要：
+
+```bash
+bash scripts/setup-docker.sh --mirror aliyun   # 会先打印改动清单并征求同意
+```
+
+</details>
+
 
 > 课程作者：Connor He。
 
@@ -149,6 +218,16 @@ docs/                    模型说明、教师说明、课程地图
 tests/                   物理、接口、内容一致性测试
 ```
 
+## 界面与交互
+
+- **顶栏一键切换 3D / 2D**，选择会记住；低配机器自动默认 2D
+  （按 `navigator.hardwareConcurrency ≤ 2` 判断）。
+- **模型可拖动旋转、滚轮缩放**：向右拖 = 相机绕目标向右转，物体屏幕右侧的部分
+  转向观察者，即"指针带着画面走"；竖直拖拽抬高或降低俯视角。
+- 拖动过之后不再自动重置视角；换电机型号或机器人参数时会重新自动取景。
+- 每个模型类型有自己的默认视角：电机需要较高俯角看端面，机器人需要较低俯角看轮子。
+- 尊重系统的"减少动态效果"设置（`prefers-reduced-motion`）。
+
 ## 测试与验收
 
 ```bash
@@ -159,6 +238,9 @@ python3 -m unittest discover -s tests
 SVPWM 的伏秒平衡与线性区边界、PI 抗饱和行为、编码器量化、
 差速运动学与纯追踪、参数校验边界、令牌鉴权与路径穿越防护、
 作业生命周期、以及课程内容的结构一致性。
+
+其中前端部分（几何、相机、动画）有 294 项 Node 断言，包括**相机手性与拖拽方向**
+的回归测试——这两类错误不会让任何数值变成非法值，只能靠方向断言抓出来。
 
 模型的验证边界（哪些结论不能用）写在
 [docs/MOTOR_MODEL.md](docs/MOTOR_MODEL.md)，

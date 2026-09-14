@@ -251,6 +251,55 @@ check('受防护的相机投影有限', Number.isFinite(projection.x) && Number.
     `远=${far.depth.toFixed(0)} 近=${near.depth.toFixed(0)}`);
 }
 
+/* ---------------------------------------------------------------- 拖拽映射 */
+
+// 用户反馈"鼠标拖动时左右方向反了"。这里把拖拽语义固定下来：
+// **向右拖 = 相机绕目标向右转**，于是物体屏幕右侧的部分转向观察者，
+// 也就是指针带着画面走。
+//
+// 判据：在"标准前视 + 俯视"下，位于屏幕右半边的固定世界点，
+// 向右拖拽后它的屏幕横向位移应当与指针同向（或至少不整体反向）。
+{
+  const at = (camera, point) => camera.project(point, 600, 400);
+  // 标准前视（φ = −90°）：屏幕右方是世界 −x，所以取 −x 侧的点
+  const camera = new OrbitCamera({ yaw: -Math.PI / 2, pitch: 0.5, distance: 300, quality: 1 });
+  const probePoint = [-40, 0, 0];              // 位于屏幕右侧
+  const before = at(camera, probePoint);
+  check('探针点在屏幕右半边', before.x > 300, `x=${before.x.toFixed(0)}`);
+  camera.orbit(20, 0);                          // 向右拖 20 px
+  const after = at(camera, probePoint);
+  check('向右拖拽与指针同向', after.x > before.x,
+    `x: ${before.x.toFixed(0)} → ${after.x.toFixed(0)}`);
+  check('拖拽确实改变偏航', Math.abs(camera.yaw + Math.PI / 2) > 1e-6);
+
+  // 反向拖拽应当对称
+  const back = new OrbitCamera({ yaw: -Math.PI / 2, pitch: 0.5, distance: 300, quality: 1 });
+  const start = at(back, probePoint).x;
+  back.orbit(-20, 0);
+  check('向左拖拽方向也正确', at(back, probePoint).x < start);
+
+  // 竖直拖拽：向上拖 → pitch 增大 → 相机抬高。
+  // 判据取"深度轴上的点"在屏幕竖直方向上的位移：pitch 的作用正是把
+  // **深度**交换成屏幕竖直位移（pitch=0 时它在屏幕上是静止的）。
+  // 注意不要拿世界 +z 上的点来测——标准前视下它本来就躺在屏幕竖直方向上，
+  // pitch 对它几乎没有影响（我第一版就写错了这条判据）。
+  const vertical = new OrbitCamera({ yaw: -Math.PI / 2, pitch: 0.12, distance: 300, quality: 1 });
+  const depthProbe = [0, 80, 0];                 // 位于相机正前方的远处
+  const offsetBefore = at(vertical, depthProbe).y - at(vertical, [0, 0, 0]).y;
+  vertical.orbit(0, 20);
+  const offsetAfter = at(vertical, depthProbe).y - at(vertical, [0, 0, 0]).y;
+  check('向上拖拽抬高相机（俯视更深）', vertical.pitch > 0.12, `pitch=${vertical.pitch.toFixed(3)}`);
+  check('相机抬高后远处点相对原点更靠上', offsetAfter < offsetBefore,
+    `相对偏移 ${offsetBefore.toFixed(1)} → ${offsetAfter.toFixed(1)}`);
+
+  // 俯仰限幅不能被拖出合理范围
+  const limited = new OrbitCamera({ yaw: 0, pitch: 0, distance: 300, quality: 1 });
+  for (let i = 0; i < 500; i += 1) limited.orbit(0, 50);
+  check('俯仰有上限', limited.pitch <= 1.35 + 1e-9, `pitch=${limited.pitch}`);
+  for (let i = 0; i < 1000; i += 1) limited.orbit(0, -50);
+  check('俯仰有下限', limited.pitch >= -1.35 - 1e-9, `pitch=${limited.pitch}`);
+}
+
 /* ---------------------------------------------------------------- 自动取景 */
 
 const framed = new OrbitCamera({ quality: 1 });

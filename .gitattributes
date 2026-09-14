@@ -1,0 +1,19 @@
+# 行尾策略。
+#
+# 为什么需要显式声明：Windows 的 .bat 若被规范化成 LF 行尾，
+# 在 cmd.exe 里会出现 goto/label 解析异常、中文乱码等难查的问题。
+# shell 脚本同理——LF 是硬要求。
+
+* text=auto eol=lf
+
+# Windows 批处理必须保留 CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# 二进制资源不要做任何转换
+*.png binary
+*.jpg binary
+*.ico binary
+*.gz binary
+*.zip binary
+*.sqlite3 binary

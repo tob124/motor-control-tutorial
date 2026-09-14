@@ -158,6 +158,19 @@ export class OrbitCamera {
     return (this.fov * this.quality) / this.distance;
   }
 
+  /**
+   * 鼠标拖拽 → 相机绕目标转动。
+   *
+   * 水平方向的符号由"屏幕上那一点要跟着指针走"推出来，不能凭手感定：
+   * 假设拖动前屏幕右侧的点在世界方向 u 上，偏航变化 Δφ 后它的屏幕横向位移
+   * 正比于 Δφ·sin(φ)（因为 screenRight = (sinφ, −cosφ, 0)）。
+   * 要让该点跟着指针向右移动（dx > 0），需 Δφ·sin(φ) > 0；
+   * 在标准前视 φ = −90°（sinφ = −1）下应取 Δφ = −dx。
+   *
+   * 这条是**实测定的**：在标准前视下取世界 −x 侧的点（位于屏幕右半），
+   * Δφ = +dx 时它的屏幕横向位移为 −3.7 px（反向），Δφ = −dx 时为 +3.7 px
+   * （与指针同向）。tests/model.test.mjs 里有对应的回归断言。
+   */
   orbit(dx, dy) {
     this.yaw -= dx * 0.008;
     this.pitch = Math.max(-1.35, Math.min(1.35, this.pitch + dy * 0.008));
