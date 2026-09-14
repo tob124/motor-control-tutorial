@@ -1,0 +1,176 @@
+[
+ {
+  "id": "python-basics",
+  "name": "Python 3.12（标准库）与脚本习惯",
+  "category": "数值计算与实验记录",
+  "stage": "基础必修",
+  "summary": "课程的仿真内核与实验记录全部用 Python 标准库完成，不需要安装任何第三方包。",
+  "scope": "宿主机；本课程所有网页实验与服务端仿真都在这里运行。",
+  "resource": "Python 3.12，无第三方依赖；磁盘占用可忽略。",
+  "license": "Python 软件基金会许可证（PSF-2.0），允许自由使用与再分发。",
+  "source": "https://docs.python.org/zh-cn/3/",
+  "steps": [
+   {
+    "title": "确认 Python 版本",
+    "explanation": "课程要求 3.12 及以上：用到了 f-string 与标准库中的新特性。",
+    "command": "python3 --version\npython3 -c \"import sys; print(sys.version_info >= (3, 12))\"",
+    "expected": "打印 Python 3.12.x，以及 True。",
+    "troubleshooting": "Ubuntu 24.04 自带 3.12。若版本过低，先用发行版包管理器升级。"
+   },
+   {
+    "title": "验证课程服务能起来",
+    "explanation": "服务是纯标准库的 HTTP 服务，不需要 pip、不需要 venv。",
+    "command": "python3 -m server.app --check",
+    "expected": "打印课程周数与单元数，并提示\"自检通过，未启动服务\"。",
+    "troubleshooting": "若提示缺少 course/curriculum.json，先运行 python3 scripts/build_content.py。"
+   },
+   {
+    "title": "运行单元测试",
+    "explanation": "课程的物理模型有自动测试。改过代码就该跑一遍，确认没有破坏物理正确性。",
+    "command": "python3 -m unittest discover -s tests",
+    "expected": "全部通过（OK），用时约 2–5 秒。",
+    "troubleshooting": "失败信息里会给出期望值与实际值；先看是不是容差问题，再看是不是模型改动。"
+   }
+  ],
+  "verify": "python3 -m unittest discover -s tests 2>&1 | tail -3",
+  "notes": [
+   "不需要 pip install 任何东西；这是刻意的设计，因为很多实验机没有网络。",
+   "如果要自己写脚本分析导出的 CSV，标准库的 csv 与 statistics 模块就够了。"
+  ]
+ },
+ {
+  "id": "can-tools",
+  "name": "CAN 工具链（can-utils / python-can / candump）",
+  "category": "通信与多节点调试",
+  "stage": "第 6–10 周",
+  "summary": "解析、记录与回放 CAN 报文；把总线负载率的估算与实测对上。",
+  "scope": "宿主机或课程实验容器；需要 socketcan 支持与物理适配器（或虚拟 vcan）。",
+  "resource": "can-utils 与 python-can 体积很小；虚拟 vcan 不需要任何硬件。",
+  "license": "GPL-2.0（can-utils）与 LGPL/MIT（python-can），保留上游许可证。",
+  "source": "https://github.com/linux-can/can-utils",
+  "steps": [
+   {
+    "title": "建立虚拟 CAN 通道",
+    "explanation": "没有硬件也能练报文解析：内核的 vcan 模块提供纯软件总线。",
+    "command": "sudo modprobe vcan\nsudo ip link add dev vcan0 type vcan\nsudo ip link set up vcan0\nip -details link show vcan0",
+    "expected": "vcan0 处于 UP 状态，类型为 vcan。",
+    "troubleshooting": "若 modprobe 失败，说明内核没有编入 vcan；改用带该模块的内核或跳过本步。"
+   },
+   {
+    "title": "收发一帧并观察",
+    "explanation": "两个终端分别收与发，观察报文的 ID、DLC 与周期。",
+    "command": "# 终端 A\ncandump vcan0\n# 终端 B\ncansend vcan0 123#1122334455667788",
+    "expected": "candump 打印一行：vcan0  123   [8]  11 22 33 44 55 66 77 88",
+    "troubleshooting": "candump 没有输出时先确认 vcan0 是 UP，再确认两个终端用的是同一个接口。"
+   },
+   {
+    "title": "用 python-can 记录并统计周期抖动",
+    "explanation": "课程第 6 周要求给出报文周期与抖动的实测值，这是最直接的来源。",
+    "command": "python3 - <<'PY'\nimport can, statistics, time\nbus = can.Bus(\"vcan0\", bustype=\"socketcan\")\nstamps = []\nend = time.time() + 2\nwhile time.time() < end:\n    msg = bus.recv(timeout=0.2)\n    if msg: stamps.append(msg.timestamp)\nbus.shutdown()\ngaps = [b - a for a, b in zip(stamps, stamps[1:])]\nprint(\"帧数\", len(stamps))\nif gaps: print(\"平均周期 ms\", round(statistics.mean(gaps)*1e3, 3),\n               \"抖动 ms\", round(statistics.pstdev(gaps)*1e3, 3))\nPY",
+    "expected": "打印帧数、平均周期与抖动（无报文时只打印帧数 0）。",
+    "troubleshooting": "若报 socketcan 不可用，说明当前环境没有 CAN 支持；课程实验台的总线负载估算仍可独立使用。"
+   }
+  ],
+  "verify": "candump -h | head -2 && python3 -c \"import can; print(can.__version__)\"",
+  "notes": [
+   "没有硬件、没有 vcan 时，第 6 周的负载率与抖动仍然可以在网页实验台里算出来。",
+   "真实总线的抖动还受终端电阻、线长与拓扑影响，估算只是上界。"
+  ]
+ },
+ {
+  "id": "lab-toolchain",
+  "name": "编译与调试工具链（gcc / make / gdb）",
+  "category": "嵌入式固件的学习与验证",
+  "stage": "按需（可选容器实验）",
+  "summary": "在真实 Ubuntu 环境里编译并单步调试一个简单的电机控制程序。",
+  "scope": "课程实验容器（可选）；网页实验台不依赖它。",
+  "resource": "build-essential 与 gdb 约 200 MB。",
+  "license": "GPL 系列；分发二进制时须遵守对应许可证。",
+  "source": "https://gcc.gnu.org/onlinedocs/",
+  "steps": [
+   {
+    "title": "确认编译器可用",
+    "explanation": "先确认工具在，再谈写代码。",
+    "command": "gcc --version | head -1\nmake --version | head -1\ngdb --version | head -1",
+    "expected": "三条命令各自打印版本号。",
+    "troubleshooting": "缺哪个装哪个；本机没有网络时使用课程容器（镜像里已预装）。"
+   },
+   {
+    "title": "编译一个电流环的一阶实现",
+    "explanation": "把课程里的 PI 用 C 写一遍，能加深对\"离散实现\"的理解。",
+    "command": "cat > /tmp/pi.c <<'C'\n#include <stdio.h>\ntypedef struct { double kp, ki, limit, integral; } PI;\ndouble pi_step(PI *p, double error, double dt) {\n    double proposed = p->integral + p->ki * error * dt;\n    double raw = p->kp * error + proposed;\n    if (raw > p->limit) { p->integral = proposed > p->integral ? p->integral : proposed; return p->limit; }\n    if (raw < -p->limit) { p->integral = proposed < p->integral ? p->integral : proposed; return -p->limit; }\n    p->integral = proposed; return raw;\n}\nint main(void) {\n    PI c = {0.4, 1000.0, 24.0, 0.0};\n    double i = 0.0;\n    for (int k = 0; k < 2000; k++) { double u = pi_step(&c, 2.0 - i, 1e-3); i += (u - 2.0 * i) / 0.002 * 1e-3; }\n    printf(\"final current = %.6f A\\n\", i);\n    return 0;\n}\nC\ngcc -O2 -o /tmp/pi /tmp/pi.c && /tmp/pi",
+    "expected": "打印 final current ≈ 2.0 A（说明离散 PI 与仿真一致）。",
+    "troubleshooting": "数值对不上时，先核对 dt 与电气时间常数，再核对限幅位置。"
+   }
+  ],
+  "verify": "gcc --version >/dev/null && echo \"工具链可用\"",
+  "notes": [
+   "本机（当前环境）没有安装 gcc 与本工具链时，网页实验与全部课程内容不受影响。",
+   "真实嵌入式工程还需要交叉编译工具链与烧写器，那属于第 9 周之后的实机内容。"
+  ]
+ },
+ {
+  "id": "kicad",
+  "name": "KiCad（电气原理图与接线图）",
+  "category": "电气设计文档",
+  "stage": "第 9 周按需",
+  "summary": "把整机电气架构画成别人能照着接线的图；交付物的一部分。",
+  "scope": "宿主机（图形界面）；课程不自动安装。",
+  "resource": "约 1.5 GB（含符号库与 3D 模型）；建议 8 GB 以上内存。",
+  "license": "GPL-3.0；符号库另有 CC-BY-SA 条款，分发时保留声明。",
+  "source": "https://www.kicad.org/",
+  "steps": [
+   {
+    "title": "安装",
+    "explanation": "用发行版仓库即可；本课程不要求特定版本。",
+    "command": "sudo apt-get install -y kicad",
+    "expected": "kicad 出现在应用菜单，命令行 `kicad --version` 有输出。",
+    "troubleshooting": "本机内存小于 4 GB 时可能很慢；第 9 周也接受手绘框图或 Mermaid 图。"
+   },
+   {
+    "title": "画一张最小可用的供电与安全链框图",
+    "explanation": "不用画 PCB，只要把电池、保险、急停、分电、驱动、控制板的关系画清楚。",
+    "command": "# 图形界面操作：新建原理图 → 放置符号 → 连线 → 导出 PDF",
+    "expected": "导出一页 PDF：含电池、主保险、急停回路、各路电源分配与接地说明。",
+    "troubleshooting": "符号找不到时用通用连接器符号代替，重点是拓扑正确而不是符号好看。"
+   }
+  ],
+  "verify": "ls -l 电气架构图.pdf",
+  "notes": [
+   "第 9 周的交付物接受任何可复现的图纸格式：KiCad、draw.io、Mermaid 均可。",
+   "关键是标注电压、电流、线径与保险规格，而不是画得漂亮。"
+  ]
+ },
+ {
+  "id": "docker-labs",
+  "name": "Docker rootless（可选的真实终端实验）",
+  "category": "隔离实验环境",
+  "stage": "选修",
+  "summary": "在隔离容器里练命令行、编译与 CAN 工具；不影响宿主机。",
+  "scope": "宿主机需要管理员授权安装；网页不会自动执行任何宿主机命令。",
+  "resource": "镜像约 300–600 MB；建议预留 4 GB 空闲磁盘。",
+  "license": "Docker Engine 为 Apache-2.0；课程镜像中的各软件保留其原始许可证。",
+  "source": "https://docs.docker.com/engine/security/rootless/",
+  "steps": [
+   {
+    "title": "检查是否已经可用",
+    "explanation": "先看有没有，再决定装不装。课程在缺失时会如实降级，不会假装实验通过。",
+    "command": "command -v docker && docker --context rootless info | head -5",
+    "expected": "有输出说明已安装并可用；报错说明尚未准备。",
+    "troubleshooting": "没有 docker 时网页实验台、课程内容与作品导出全部照常使用。"
+   },
+   {
+    "title": "查看课程提供的准备脚本",
+    "explanation": "脚本可审阅，且必须由你手动执行——网页不会替你改宿主机。",
+    "command": "sed -n \"1,40p\" scripts/setup-docker.sh",
+    "expected": "读到脚本说明与它将要执行的 apt/docker 命令。",
+    "troubleshooting": "不同意脚本的改动时不要执行；课程的核心实验不依赖它。"
+   }
+  ],
+  "verify": "docker --context rootless ps",
+  "notes": [
+   "本课程默认不启用容器实验：当前环境的磁盘与内存都偏紧，且安装需要管理员授权。",
+   "所有网页实验都不依赖 Docker。"
+  ]
+ }
+]

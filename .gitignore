@@ -1,0 +1,9 @@
+# 学习记录、实验数据与缓存
+.state/
+__pycache__/
+*.pyc
+
+# 导出物
+*.zip
+*-portfolio.md
+*-guide.md

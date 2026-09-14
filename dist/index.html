@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="面向 ROBOCON 新电控队员的《电机拖动》+《机器人技术》交互式课程：真实数值仿真的电机、逆变器与整机实验台。作者 Connor He 和 Astra。">
+<title>ROBOCON 电控实训教室 · 从一台电机到一台机器人</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='9' fill='%231d4ed8'/%3E%3Cg fill='none' stroke='white' stroke-width='3'%3E%3Ccircle cx='20' cy='20' r='10'/%3E%3Cpath d='M20 6v6M20 28v6M6 20h6M28 20h6'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/vendor/xterm.css">
+<script defer src="/vendor/xterm.js"></script>
+<script defer src="/vendor/addon-fit.js"></script>
+<script type="module" src="/app.js"></script>
+</head>
+<body>
+<aside class="sidebar" id="sidebar">
+  <a class="brand" href="#learn"><span class="brand-mark" aria-hidden="true">◉</span><span>ROBOCON 电控<small>从一台电机到一台机器人</small></span></a>
+  <div class="cohort">《电机拖动》×《机器人技术》实训</div>
+  <nav class="main-nav" aria-label="主要导航">
+    <button data-view="learn" class="active"><span>▤</span> 项目课程</button>
+    <button data-view="motor"><span>∿</span> 电机与闭环实验台</button>
+    <button data-view="power"><span>⚡</span> 逆变器与调制</button>
+    <button data-view="robot"><span>◎</span> 整机与机器人</button>
+    <button data-view="software"><span>⊞</span> 工具与环境</button>
+    <button data-view="portfolio"><span>▧</span> 学习与作品</button>
+  </nav>
+  <div class="nav-caption">课程地图 <span id="week-count">11 周</span></div>
+  <nav id="course-nav" class="course-nav" aria-label="课程目录"></nav>
+  <div class="sidebar-bottom">
+    <div class="progress-line"><span>课程进度</span><strong id="progress-label">0 / 0</strong></div>
+    <progress id="overall-progress" max="1" value="0" aria-label="课程完成数"></progress>
+    <p>作者：Connor He 和 Astra</p>
+    <small>先看懂一台电机，再设计一台机器人。</small>
+  </div>
+</aside>
+<main class="main">
+  <header class="topbar">
+    <button class="menu-toggle" aria-label="展开课程导航">☰</button>
+    <div id="breadcrumb">项目课程 <span>/</span> 课程地图</div>
+    <button class="chip mode-switch" id="mode-button" title="在 3D 与 2D 正投影之间切换；低配电脑建议 2D">3D 模型</button>
+    <button class="environment-pill" id="environment-button"><span class="status-dot"></span><span id="environment-label">检查本机环境</span></button>
+  </header>
+  <div id="view-root" tabindex="-1"></div>
+  <footer>ROBOCON 电控实训教室 · 项目式工程训练 <span>作者：Connor He 和 Astra</span></footer>
+</main>
+<div id="toast" role="status" aria-live="polite"></div>
+<dialog id="confirm-dialog">
+  <h2 id="confirm-title">确认操作</h2>
+  <p id="confirm-message"></p>
+  <div class="button-row"><button id="confirm-cancel" class="secondary">取消</button><button id="confirm-ok" class="danger">确认</button></div>
+</dialog>
+</body>
+</html>
